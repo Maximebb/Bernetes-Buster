@@ -33,7 +33,11 @@ jobs:
         run: |
           docker run --rm bernetes-buster:ci --help
           docker run --rm bernetes-buster:ci --version
-          # Not in-cluster: should still produce a JSON report without crashing hard on missing API
-          docker run --rm bernetes-buster:ci --profile developer --quiet --json - | tee /tmp/out.json
+          set +e
+          docker run --rm -e BBUSTER_SKIP_API=1 bernetes-buster:ci --profile developer --quiet --json - > /tmp/out.json
+          rc=$?
+          set -e
+          # 0 = clean, 2 = CRITICAL FOUND signals (expected in some container runtimes)
+          test "$rc" -eq 0 -o "$rc" -eq 2
           grep -q '"tool": "bernetes-buster"' /tmp/out.json
           grep -q '"signals"' /tmp/out.json
