@@ -1,0 +1,39 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  build-test-smoke:
+    name: Build, unit tests, smoke test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Shell syntax check
+        run: |
+          set -e
+          bash -n bbuster.sh
+          find lib profiles -name '*.sh' -print0 | xargs -0 -n1 bash -n
+
+      - name: Unit / smoke tests
+        run: bash test/smoke.sh
+
+      - name: Build container image
+        run: docker build -t bernetes-buster:ci .
+
+      - name: Image smoke (offline container checks)
+        run: |
+          docker run --rm bernetes-buster:ci --help
+          docker run --rm bernetes-buster:ci --version
+          # Not in-cluster: should still produce a JSON report without crashing hard on missing API
+          docker run --rm bernetes-buster:ci --profile developer --quiet --json - | tee /tmp/out.json
+          grep -q '"tool": "bernetes-buster"' /tmp/out.json
+          grep -q '"signals"' /tmp/out.json

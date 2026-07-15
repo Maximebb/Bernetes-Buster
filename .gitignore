@@ -1,0 +1,10 @@
+# Bernetes-Buster
+.DS_Store
+*.swp
+*.tmp
+/reports/
+*.json
+!examples/reports/*.json
+.idea/
+.vscode/
+.env

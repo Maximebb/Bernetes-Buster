@@ -1,0 +1,71 @@
+# Bernetes-Buster audit Job — security-eng profile (default)
+# Prerequisites: kubectl apply -f deploy/rbac-readonly.yaml
+# SPDX-License-Identifier: AGPL-3.0-or-later
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: bernetes-buster-scripts
+  namespace: bernetes-buster
+  labels:
+    app.kubernetes.io/name: bernetes-buster
+data:
+  # Placeholder: prefer building an image that embeds the repo.
+  # For quick starts, mount this ConfigMap or use the public image recipe in README.
+  README: |
+    Replace this ConfigMap with an image build, or use deploy/job-from-git.yaml.
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: bernetes-buster
+  namespace: bernetes-buster
+  labels:
+    app.kubernetes.io/name: bernetes-buster
+    bernetes-buster/profile: security-eng
+spec:
+  ttlSecondsAfterFinished: 86400
+  backoffLimit: 0
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: bernetes-buster
+      annotations:
+        description: "Read-only Kubernetes misconfiguration explorer"
+    spec:
+      restartPolicy: Never
+      serviceAccountName: bernetes-buster
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: bbuster
+          image: ghcr.io/maximebb/bernetes-buster:latest
+          imagePullPolicy: IfNotPresent
+          args:
+            - --profile
+            - security-eng
+            - --json
+            - /reports/bbuster-report.json
+          env:
+            - name: NO_COLOR
+              value: "0"
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: reports
+              mountPath: /reports
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+      volumes:
+        - name: reports
+          emptyDir: {}

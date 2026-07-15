@@ -1,0 +1,14 @@
+# Minimal SA for "what can a compromised default pod see?" testing
+# Does NOT bind extra ClusterRoles — uses namespace default permissions only.
+# SPDX-License-Identifier: AGPL-3.0-or-later
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: bernetes-buster
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: bernetes-buster-foothold
+  namespace: bernetes-buster
+automountServiceAccountToken: true

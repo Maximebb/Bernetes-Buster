@@ -1,0 +1,53 @@
+# Run directly from a clone via busybox+kubectl (no custom image required)
+# Useful for red-team/security eng quick drops. Mounts a hostPath or uses initContainer.
+# SPDX-License-Identifier: AGPL-3.0-or-later
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: bernetes-buster-git
+  namespace: bernetes-buster
+  labels:
+    app.kubernetes.io/name: bernetes-buster
+spec:
+  ttlSecondsAfterFinished: 86400
+  backoffLimit: 0
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: bernetes-buster
+    spec:
+      restartPolicy: Never
+      serviceAccountName: bernetes-buster
+      initContainers:
+        - name: fetch
+          image: alpine/git:2.45.2
+          command: ["sh", "-c"]
+          args:
+            - |
+              set -e
+              git clone --depth 1 https://github.com/Maximebb/Bernetes-Buster.git /work/src
+              chmod +x /work/src/bbuster.sh
+          volumeMounts:
+            - name: work
+              mountPath: /work
+      containers:
+        - name: bbuster
+          image: bitnami/kubectl:1.31
+          command: ["bash", "-c"]
+          args:
+            - |
+              set -e
+              mkdir -p /work/reports
+              bash /work/src/bbuster.sh --profile security-eng --json /work/reports/bbuster-report.json
+              echo "===== JSON REPORT ====="
+              cat /work/reports/bbuster-report.json
+          volumeMounts:
+            - name: work
+              mountPath: /work
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+      volumes:
+        - name: work
+          emptyDir: {}

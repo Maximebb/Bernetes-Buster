@@ -1,0 +1,81 @@
+# ServiceAccount + read-only ClusterRole for Bernetes-Buster Jobs
+# Apply before deploy/job.yaml
+# SPDX-License-Identifier: AGPL-3.0-or-later
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: bernetes-buster
+  labels:
+    app.kubernetes.io/name: bernetes-buster
+    pod-security.kubernetes.io/enforce: baseline
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: bernetes-buster
+  namespace: bernetes-buster
+  labels:
+    app.kubernetes.io/name: bernetes-buster
+automountServiceAccountToken: true
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: bernetes-buster-readonly
+  labels:
+    app.kubernetes.io/name: bernetes-buster
+rules:
+  # SelfSubject* are always allowed; included for clarity
+  - apiGroups: ["authorization.k8s.io"]
+    resources: ["selfsubjectaccessreviews", "selfsubjectrulesreviews"]
+    verbs: ["create"]
+  - apiGroups: [""]
+    resources:
+      - namespaces
+      - nodes
+      - pods
+      - services
+      - serviceaccounts
+      - configmaps
+      - endpoints
+      - events
+      - persistentvolumes
+      - persistentvolumeclaims
+      - replicationcontrollers
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["list"]  # metadata exposure for misconfig signal; not used to dump values by default
+  - apiGroups: ["apps"]
+    resources: ["deployments", "daemonsets", "statefulsets", "replicasets"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["batch"]
+    resources: ["jobs", "cronjobs"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["rbac.authorization.k8s.io"]
+    resources: ["roles", "rolebindings", "clusterroles", "clusterrolebindings"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["networking.k8s.io"]
+    resources: ["networkpolicies", "ingresses"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["admissionregistration.k8s.io"]
+    resources: ["validatingwebhookconfigurations", "mutatingwebhookconfigurations"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["policy"]
+    resources: ["podsecuritypolicies"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: bernetes-buster-readonly
+  labels:
+    app.kubernetes.io/name: bernetes-buster
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: bernetes-buster-readonly
+subjects:
+  - kind: ServiceAccount
+    name: bernetes-buster
+    namespace: bernetes-buster
