@@ -82,13 +82,13 @@ NOT FOUND  rbac.create.pods: No permission: create pods in ns/default
 
 Categories:
 
-1. **Identity & foothold** — in-cluster SA token, namespace, whoami  
-2. **Container exposure** — privileged caps, docker.sock, hostPath, hostPID/Network, root, seccomp  
-3. **RBAC** — dangerous `can-i` verbs (secrets, exec, impersonate, bind roles, …)  
+1. **Identity & foothold** — in-cluster SA token, namespace, whoami, legacy non-expiring tokens  
+2. **Container exposure** — privileged caps, docker.sock, hostPath, hostPID/Network, root, seccomp, `no_new_privs`, writable `core_pattern` / cgroup `release_agent` / sysfs (breakout primitives)  
+3. **RBAC** — dangerous `can-i` verbs (secrets, exec, attach, ephemeralcontainers, impersonate, escalate/bind roles, patch nodes, …)  
 4. **Secrets & cloud** — sensitive env names, kubeconfig, IMDS (AWS/GCP/Azure)  
 5. **Network** — kubelet ports, NodePort/LB services, NetworkPolicy presence  
 6. **Workload hygiene** — privileged/hostNetwork pods, `:latest`, default SA  
-7. **Cluster posture** — PSA labels, admission webhooks, anonymous bindings  
+7. **Cluster posture** — PSA labels, admission webhooks, anonymous bindings, `cluster-admin`-bound ServiceAccounts  
 
 JSON report shape (see `examples/reports/`):
 

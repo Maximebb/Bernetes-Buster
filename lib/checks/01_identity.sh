@@ -34,6 +34,16 @@ if file_readable "$TOKEN_FILE"; then
     payload="$(cut -d. -f2 < "$TOKEN_FILE" | tr '_-' '/+' | awk '{l=length($0)%4; printf "%s", $0; if(l) printf "%s", substr("====",1,4-l)}' | base64 -d 2>/dev/null || true)"
     if [[ -n "$payload" ]]; then
       signal_info "k8s.sa_token_claims" "INFO" "Token payload (truncated): ${payload:0:200}"
+      # Flag legacy non-expiring tokens (no "exp" claim) — these do not rotate.
+      if ! grep -q '"exp"' <<<"$payload"; then
+        signal_found "k8s.sa_token_no_expiry" "MEDIUM" \
+          "ServiceAccount token has no expiry (exp) claim — legacy non-rotating token" \
+          "Use projected (bound) SA tokens with an expirationSeconds instead of legacy secret tokens" \
+          "security-eng,red-team"
+      else
+        exp="$(grep -oE '"exp"[[:space:]]*:[[:space:]]*[0-9]+' <<<"$payload" | grep -oE '[0-9]+' | head -1)"
+        signal_info "k8s.sa_token_no_expiry" "FOUND" "SA token carries an expiry (exp=${exp:-unknown})"
+      fi
     fi
   fi
 else
