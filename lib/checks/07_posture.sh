@@ -53,6 +53,19 @@ if [[ -n "$anon" ]]; then
     signal_not_found "posture.anonymous_binding" "No system:anonymous subject spotted in ClusterRoleBindings"
   fi
 
+  # cluster-admin granted to ServiceAccounts — over-privileged automation identities.
+  ca_sa="$(kctl get clusterrolebindings \
+    -o jsonpath='{range .items[?(@.roleRef.name=="cluster-admin")]}{.metadata.name}{" -> "}{range .subjects[?(@.kind=="ServiceAccount")]}{.namespace}{"/"}{.name}{" "}{end}{"\n"}{end}' \
+    2>/dev/null | grep -E '/' | head -10 || true)"
+  if [[ -n "$ca_sa" ]]; then
+    signal_found "posture.cluster_admin_sa" "HIGH" \
+      "cluster-admin bound to ServiceAccount(s): $(echo "$ca_sa" | tr '\n' '; ')" \
+      "Grant ServiceAccounts least-privilege Roles instead of cluster-admin" \
+      "security-eng,red-team"
+  else
+    signal_not_found "posture.cluster_admin_sa" "No cluster-admin bindings to ServiceAccounts spotted"
+  fi
+
   if echo "$anon" | grep -q 'system:unauthenticated'; then
     signal_found "posture.unauthenticated_binding" "HIGH" \
       "ClusterRoleBinding references system:unauthenticated" \

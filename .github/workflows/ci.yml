@@ -23,6 +23,9 @@ jobs:
           bash -n bbuster.sh
           find lib profiles -name '*.sh' -print0 | xargs -0 -n1 bash -n
 
+      - name: Unit tests
+        run: bash test/unit.sh
+
       - name: Unit / smoke tests
         run: bash test/smoke.sh
 

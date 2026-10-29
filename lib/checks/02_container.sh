@@ -99,6 +99,54 @@ else
   signal_skipped "container.host_device" "Not in-cluster — skipping host device probes"
 fi
 
+# no_new_privs: when 0, setuid/privileged binaries can raise privileges on exec
+if [[ -r /proc/self/status ]]; then
+  nnp="$(awk '/^NoNewPrivs:/{print $2}' /proc/self/status 2>/dev/null)"
+  if [[ "$nnp" == "0" ]]; then
+    signal_found "container.no_new_privs" "MEDIUM" \
+      "NoNewPrivs is 0 — privilege escalation via setuid binaries is not blocked" \
+      "Set allowPrivilegeEscalation: false in the container securityContext" \
+      "developer,security-eng"
+  elif [[ -n "$nnp" ]]; then
+    signal_not_found "container.no_new_privs" "NoNewPrivs=${nnp} (escalation on exec blocked)"
+  fi
+fi
+
+# Writable /proc/sys/kernel/core_pattern — classic container breakout primitive.
+# Passive -w access() test only; never written to.
+if [[ -w /proc/sys/kernel/core_pattern ]]; then
+  signal_found "container.core_pattern_writable" "CRITICAL" \
+    "/proc/sys/kernel/core_pattern is writable — host code-execution breakout primitive" \
+    "Do not grant CAP_SYS_ADMIN / privileged; keep /proc/sys read-only (maskedPaths / RuntimeDefault)" \
+    "security-eng,red-team"
+else
+  signal_not_found "container.core_pattern_writable" "/proc/sys/kernel/core_pattern not writable"
+fi
+
+# Writable cgroup release_agent / notify_on_release — cgroup v1 breakout primitive.
+cgroup_rw=0
+for ra in /sys/fs/cgroup/*/release_agent /sys/fs/cgroup/release_agent; do
+  if [[ -w "$ra" ]]; then
+    signal_found "container.cgroup_release_agent" "CRITICAL" \
+      "Writable cgroup release_agent present: ${ra} — host breakout primitive" \
+      "Avoid privileged pods and host cgroup mounts; drop CAP_SYS_ADMIN" \
+      "security-eng,red-team"
+    cgroup_rw=1
+    break
+  fi
+done
+[[ "$cgroup_rw" -eq 0 ]] && signal_not_found "container.cgroup_release_agent" "No writable cgroup release_agent found"
+
+# Writable sysfs — often indicates a privileged container
+if [[ -d /sys/kernel ]] && [[ -w /sys/kernel ]]; then
+  signal_found "container.sysfs_writable" "HIGH" \
+    "/sys appears mounted read-write — common in privileged containers" \
+    "Mount /sys read-only; avoid privileged: true" \
+    "security-eng,red-team"
+else
+  signal_not_found "container.sysfs_writable" "/sys not writable (or not present)"
+fi
+
 # Running as root
 uid="$(id -u 2>/dev/null || echo unknown)"
 if [[ "$uid" == "0" ]]; then

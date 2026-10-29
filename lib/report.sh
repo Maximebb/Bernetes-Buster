@@ -81,6 +81,7 @@ signal_found() {
     *)             info "FOUND  [${severity}] ${id}: ${message}" ;;
   esac
   [[ -n "$remediation" ]] && tip "Remediation: ${remediation}"
+  return 0
 }
 
 signal_not_found() {
@@ -88,18 +89,21 @@ signal_not_found() {
   local audience="${3:-all}"
   _signal_record "$id" "NOT_FOUND" "INFO" "$message" "" "$audience"
   ok "NOT FOUND  ${id}: ${message}"
+  return 0
 }
 
 signal_info() {
   local id="$1" status="$2" message="$3"
   _signal_record "$id" "$status" "INFO" "$message" "" "all"
   info "${status}  ${id}: ${message}"
+  return 0
 }
 
 signal_skipped() {
   local id="$1" message="$2"
   _signal_record "$id" "SKIPPED" "INFO" "$message" "" "all"
   quiet_echo "${DIM}SKIPPED  ${id}: ${message}${RESET}"
+  return 0
 }
 
 report_has_critical_findings() {
